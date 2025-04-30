@@ -1,0 +1,31 @@
+Copyright (c) 2025 Indranil Pal. All Rights Reserved.
+
+
+In AVX-512, it shows “256 data path” — what does that mean?
+💡 Short Answer:
+
+It means only 256 bits of the AVX-512’s full 512-bit width are used simultaneously, either due to:
+
+    Hardware limitations
+
+    Power-saving design choices
+
+🧠 In Detail:
+
+    AVX-512 = Advanced Vector Extensions (512 bits wide)
+
+    Allows processing of 8 × 64-bit doubles or 16 × 32-bit floats in one instruction
+
+    But some CPUs only implement a 256-bit data path, i.e., they handle 512-bit operations in two 256-bit passes.
+
+🧩 This is common in:
+
+    Intel CPUs that support AVX-512 but don't implement full 512-bit execution natively.
+
+    For example, Intel Ice Lake mobile CPUs may have 512-bit registers, but only 256-bit execution units.
+
+⚠️ Is it true parallelism?
+
+    Not entirely — it's still SIMD (Single Instruction Multiple Data), but if it's doing it in 2 chunks, it's partially serialized.
+
+    So, peak throughput is halved compared to true 512-bit data paths.

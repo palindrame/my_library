@@ -1,0 +1,57 @@
+Copyright (c) 2025 Indranil Pal. All Rights Reserved.
+NUMA has to be enabled by hardware.
+Particularly pay attention to the Memory Controller AS WELL! (SEE NOTE THO!)
+
+
+1. NUMA Architecture Basics
+
+    In a NUMA system, each CPU (or group of CPU cores) is connected to its own local memory via a dedicated memory controller.
+
+    This memory is fastest to access for its local CPU, but slower for remote CPUs (via interconnects like Intel QPI or AMD Infinity Fabric).
+
+    Therefore, memory access time varies depending on where memory is located — hence the term "non-uniform".
+
+2. Why One Memory Controller = No NUMA
+
+    If the entire system has only one memory controller (even with multiple cores), all memory access looks the same to every CPU/core.
+
+    In that case, you get a Uniform Memory Access (UMA) system, not NUMA.
+
+    This is true for most consumer-grade laptops and desktops — they typically have one memory controller (integrated in the CPU).
+
+
+NOTE: Even single-socket systems can have NUMA if the CPU itself is composed of multiple dies, each with its own memory controller.
+
+Example:
+
+    AMD EPYC and Threadripper CPUs are composed of multiple chiplets, each acting like a mini-CPU with its own memory controller.
+
+    These behave like NUMA nodes, even within a single socket.
+
+
+
+In Detail:
+
+    Each CPU socket hosts one physical CPU package.
+
+    Each CPU has:
+
+        Its own cores
+
+        Its own cache hierarchy
+
+        Often its own memory controller and attached RAM
+
+🧩 In a multi-socket system:
+
+    You may have 2 or 4 CPUs installed physically on the motherboard.
+
+    Each has its own NUMA node.
+
+    Memory access across sockets involves interconnects (QPI, UPI, Infinity Fabric), causing non-uniform latency.
+
+✅ Therefore, in NUMA:
+
+    NUMA node ≈ Physical CPU ≈ Socket (in traditional multi-socket systems)
+
+⚠️ On newer CPUs like AMD EPYC, a single socket may contain multiple NUMA nodes due to multiple chiplets inside one package.
