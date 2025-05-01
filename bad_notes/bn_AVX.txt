@@ -1,4 +1,3 @@
-Copyright (c) 2025 Indranil Pal. All Rights Reserved.
 
 
 In AVX-512, it shows “256 data path” — what does that mean?

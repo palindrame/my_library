@@ -1,0 +1,26 @@
+
+Virtual Address(VA) is an OS level abstraction. OS deals with VA pages.
+Even Frames are an OS level abstraction of Physical RAM.
+
+Why we need VA?
+->Nice abstraction, prog needn't think about overstepping or overwriting critical memory.
+->Therefore security as well.
+->Nice linear style memory for every process, consistentaf.
+->EVery process VA starts with 0 and goes upto 2^48 (for 64 bit systems.)
+
+The CPU deals only with VA. The OS is aware of VA and PA (But even the PA is an abstraction, eg: Frames). 
+
+The MMU (Memory Management Unit) maps VA pages -> PA frames (both OS level constructs).
+
+When we want to access something from Memory, The CPU asks the TLB (Translation LookAside Buffer),a cache which is part of the CPU MMU.
+  If TLB cache hit -> return VA to PA mappping.
+  Else Page fault, the MMU needs to do a Page table walk, slow :/
+  Page table hierarchy lmao.
+Till now, we've only got the mapping to PA, have'nt checked the data yet.
+Now we look to see if this data is present in the L1, L2, L3 level cache.
+If cache hit gg, else go to RAM, slowaf.
+
+
+
+******BTW, Memory Management Unit (MMU) and Memory Controller (MC) have different Tasks.******
+
