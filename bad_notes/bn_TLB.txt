@@ -1,0 +1,22 @@
+
+Does Context Switching b/w threads need TLB flush?
+        Yes, context switching between threads typically requires a TLB (Translation Lookaside Buffer) flush, though the extent depends on several factors.
+        When switching between threads within the same process, a complete TLB flush is often unnecessary 
+        since these threads share the same address space and page tables. 
+        The virtual-to-physical mappings remain valid across the switch.
+        However, when switching between threads of different processes, a TLB flush is generally required because:
+
+                  1. Different processes use different page tables with different virtual-to-physical memory mappings
+                  2. Without flushing, the TLB would contain stale translations that could lead to incorrect memory accesses
+
+
+*********************************************************************************************************************************************
+
+        Modern processors implement optimizations to reduce this overhead:
+
+        1. Tagged TLBs that include an address space identifier (ASID) or process context identifier (PCID) alongside each entry, 
+           allowing the hardware to distinguish between translations from different processes without complete flushes
+        2. Selective TLB invalidation that only flushes entries related to specific address ranges
+        3. Lazy TLB invalidation strategies that defer flushes until necessary
+
+*********************************************************************************************************************************************

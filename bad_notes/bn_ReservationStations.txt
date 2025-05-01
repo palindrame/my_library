@@ -1,0 +1,69 @@
+
+Out-of-order execution allows independent instructions to execute early (before earlier ones finish), but needs hardware to manage:
+
+   * When it’s safe to execute an instruction
+
+   * How to resolve data hazards
+
+   * How to commit results in correct order
+
+This is where Reservation Stations (RS) and the Reorder Buffer (ROB) come in.
+
+
+
+
+
+
+
+********************************************************************************************************************************************************
+                                                             RESERVATION STATIONS
+********************************************************************************************************************************************************
+
+✅ 1. Reservation Stations (RS)
+📌 Purpose:
+
+          Reservation stations buffer instructions waiting to execute. They hold operands, track their readiness,
+          and dispatch instructions to functional units as soon as
+          dependencies are resolved — NOT NECESSARILY in program order.
+          🧠 Core Concepts:
+
+          Each functional unit (e.g., ALU, FPU) has one or more reservation stations.
+
+          When an instruction is decoded, it is placed in an available reservation station.
+
+          If the instruction needs operands, the RS tracks whether they are ready:
+
+          If ready, it stores the operand value.
+
+          If not ready, it stores a tag of the producing unit (e.g., ROB entry ID).
+
+          As soon as all operands are ready, the instruction fires — i.e., it’s sent to the execution unit.
+
+🧵 Step-by-Step:
+
+          1. Instruction Decode: The instruction is parsed. If it needs RS, it’s sent there.
+
+          2. Operand Check:
+
+              If source operands are in registers and valid → store them directly.
+
+              If operands are not ready (pending due to earlier instruction), store a tag identifying where they will come from (e.g., ROB entry).
+
+          3. Waiting: The RS waits until all operands are ready.
+
+          4. Wakeup and Dispatch: Once ready, RS dispatches the instruction to the functional unit.
+
+          5. Execution: Execution unit computes the result.
+
+          6. Write-back: The result is sent to:
+
+              Reservation stations waiting for that value.
+
+              The Reorder Buffer, if the instruction was mapped to an ROB entry.
+
+🔄 Operand Forwarding:
+
+Reservation stations support operand forwarding. If an instruction finishes and broadcasts its result, reservation stations listen for tags they’re waiting on and capture the value immediately
+
+
+
