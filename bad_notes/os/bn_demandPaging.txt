@@ -1,0 +1,148 @@
+===============================================================================
+                                 DEMAND PAGING
+===============================================================================
+
+Overview:
+---------
+Demand Paging is a virtual memory technique in modern OSes where **pages of a
+process are loaded into physical memory only when they are accessed**. This
+allows processes to start execution without loading their entire image into RAM.
+
+Demand Paging is implemented via cooperation between:
+  - CPU (specifically the MMU: Memory Management Unit)
+  - TLB (Translation Lookaside Buffer)
+  - Page Tables (per-process structure)
+  - OS Kernel (Page Fault Handler)
+  - Secondary Storage (e.g., swap, file system)
+
+===============================================================================
+Virtual Address Translation Flow:
+---------------------------------
+
+VA: Virtual Address
+PA: Physical Address
+PFN: Page Frame Number
+VPN: Virtual Page Number
+
+1. CPU issues a virtual address (VA) during instruction fetch, load, or store.
+
+2. MMU checks the TLB for a VA→PA mapping:
+   - If **TLB hit** → PA is obtained directly.
+   - If **TLB miss** → MMU consults **multi-level page table**.
+
+3. Page Table Lookup:
+   - Page table is process-specific; its root is in CR3 (x86) or TTBR0/1 (ARM).
+   - Traverses levels:
+        PML4 → PDPT → PD → PT → PTE
+   - Each level indexed using bits from the VA.
+   - If PTE indicates Present=0 → **Page Fault**.
+
+===============================================================================
+Page Fault Handling (Control Flow):
+-----------------------------------
+
+       +-----------+           +--------------+         +---------------+
+VA --> |   MMU     |  --> TLB  | Page Tables  | --->    |   PTE Present |
+       +-----------+           +--------------+         +---------------+
+                                                  \
+                                                 Present=0
+                                                   ↓
+                                          +-------------------+
+                                          | OS Page Fault ISR |
+                                          +-------------------+
+                                                   ↓
+                             +----------------------------------------+
+                             | 1. Check if page is valid/accessible  |
+                             | 2. Allocate free frame from PF        |
+                             | 3. Load page from backing store       |
+                             |    (e.g., file, swap partition)       |
+                             | 4. Update PTE:                        |
+                             |    - Set PFN (Page Frame Number)      |
+                             |    - Set Present=1                    |
+                             | 5. Invalidate/reload TLB if needed    |
+                             +----------------------------------------+
+                                                   ↓
+                                      Resume Execution (Retry Access)
+
+===============================================================================
+Page Table Entry (PTE) Format (x86_64 Simplified):
+--------------------------------------------------
+
+  63               52 51   12   11      9 8   7 6     3 2   1 0
+ +------------------+--------+----------+-----+-------+-----+
+ |  Reserved/Flags  |  PFN   |   Flags  | U/S | R/W   | P   |
+ +------------------+--------+----------+-----+-------+-----+
+         ↑
+   PFN = Page Frame Number (used for physical address)
+   P   = Present bit → 0 means page not in RAM → triggers page fault
+
+===============================================================================
+MMU + TLB + Cache Interaction:
+------------------------------
+
+CPU       MMU       TLB        Page Table        Main Memory
+ |         |         |             |                  |
+ | → VA → →|         |             |                  |
+ |         | → TLB hit? →----------+                  |
+ |         |       yes → PA        |                  |
+ |         |       no  → → → Walk page table          |
+ |         |                    ↓                     |
+ |         |            PTE.P = 0?                    |
+ |         |              → Yes → Page Fault → OS     |
+ |         |                    ↓                     |
+ |         |       Page loaded, PTE updated           |
+ |         | ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ←|
+ |         | TLB updated                              |
+ |         | Cache access using PA                    |
+ ↓         ↓                                          ↓
+
+===============================================================================
+OS Data Structures Involved:
+----------------------------
+- Page Tables: multi-level, stored in kernel memory, pointed to by CR3
+- Frame Table: OS structure tracking physical page usage
+- Swap Map: tracks location of swapped-out pages
+- VMA (Virtual Memory Areas): per-process memory map (Linux: `struct vm_area_struct`)
+- Fault Handler: usually called `handle_mm_fault()` (Linux)
+- Page Cache: can hold file-backed pages in memory
+
+===============================================================================
+Types of Page Faults:
+---------------------
+1. Minor Page Fault:
+   - Page is already in memory (e.g., in page cache), but not mapped to process.
+   - No disk I/O needed.
+
+2. Major Page Fault:
+   - Page must be loaded from disk.
+   - Involves swap or file read → I/O latency incurred.
+
+===============================================================================
+Demand Paging + Copy-On-Write (COW):
+------------------------------------
+When a process forks, pages are shared between parent and child:
+  - Pages are marked **read-only** in both processes.
+  - On write access → **COW page fault**:
+    → OS duplicates the page
+    → Updates page tables
+    → Resumes execution
+
+This is another form of demand paging applied to write semantics.
+
+===============================================================================
+Advantages:
+-----------
+✓ Saves memory by avoiding loading unused pages.
+✓ Enables execution of large programs.
+✓ Reduces program load time.
+✓ Supports COW optimization.
+
+Disadvantages:
+--------------
+✗ Page fault latency → performance hit.
+✗ Complex kernel and MMU management.
+✗ Requires efficient swap management.
+✗ Repeated faults on poor access patterns (thrashing).
+
+===============================================================================
+

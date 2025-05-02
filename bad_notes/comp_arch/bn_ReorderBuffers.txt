@@ -1,0 +1,101 @@
+
+Out-of-order execution allows independent instructions to execute early (before earlier ones finish), but needs hardware to manage:
+
+   * When it’s safe to execute an instruction
+
+   * How to resolve data hazards
+
+   * How to commit results in correct order
+
+This is where Reservation Stations (RS) and the Reorder Buffer (ROB) come in.
+
+
+***************************************************************************************************************************************
+                                                            REORDER BUFFER
+***************************************************************************************************************************************
+
+
+✅ Reorder Buffer (ROB)
+📌 Purpose:
+
+The Reorder Buffer ensures that the results of instructions are written to the architectural state (register file, memory) 
+in the original program order, even though execution might have been out-of-order.
+🧠 Core Concepts:
+
+    The ROB is a circular queue or buffer.
+
+    Every in-flight instruction (i.e., issued but not retired) gets a ROB entry.
+
+    ROB entries store:
+
+        Destination register or memory location
+
+        Instruction type
+
+        Value of result (if available)
+
+        Status flags (e.g., completed?)
+
+    When an instruction finishes executing, it marks its ROB entry as complete.
+
+    Instructions are committed from the ROB in program order only if:
+
+        The instruction has completed execution.
+
+        There are no exceptions or branch mispredictions.
+
+
+
+🧵 Step-by-Step:
+
+    1. Instruction Issue:
+
+        Every instruction, when decoded, is allocated a ROB entry.
+
+        The destination register is marked as “pending” and linked to this ROB entry.
+
+    2. Execution and Write-back:
+
+        When the instruction finishes, it writes its result to its ROB entry.
+
+        It does not yet update the register file — this is delayed until commit.
+
+    3. Commit:
+
+        The ROB checks its head (oldest instruction).
+
+        If the instruction at the head is complete and no exception occurred, its result is committed:
+
+            Register or memory is updated.
+
+            ROB entry is freed.
+
+            Register renaming logic is updated.
+
+    4. Exception Handling:
+
+        If an exception occurs (e.g., page fault, divide by zero), the CPU can:
+
+            Roll back all later instructions.
+
+            Discard ROB entries beyond the faulting instruction.
+
+            Resume cleanly after handling.
+
+
+
+📌 Branch Misprediction:
+
+    If a branch is mispredicted, all instructions after the branch in the ROB are squashed (i.e., invalidated), 
+    and the pipeline restarts from the correct path.
+    The ROB helps this by maintaining program order and making rollback straightforward.
+
+
+
+
+
+
+
+
+
+

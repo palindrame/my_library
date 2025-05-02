@@ -1,0 +1,285 @@
+================================================================================
+                           SRAM vs DRAM – TECHNICAL NOTE 
+================================================================================
+
+I. OVERVIEW
+-----------
+The differences in speed for Cache and Main Memory access is influenced by several factors:
+    -> Proximity to CPU Core
+    -> Bus width
+    -> Complexity of Data Transfer Protocol
+    -> Underlying physical Memory Technology     🔨[Biggest Impact]🔨
+
+In this doc, we expand upon the inherent differences 
+in the Memory Technology of Cache(SRAM) and Main Memory(DRAM).
+
+**SRAM (Static Random Access Memory)** and **DRAM (Dynamic Random Access Memory)**
+are two types of volatile memory technologies. 
+
+✓ **SRAM** uses flip-flop circuits to store data without needing refresh.  
+✓ **DRAM** uses capacitors which leak charge and require periodic refresh.
+
+================================================================================
+II. BASIC COMPARISON
+--------------------
+
+| Feature                | SRAM                            | DRAM                               |
+|------------------------|----------------------------------|-----------------------------------|
+| Cell Structure         | 6-transistor (6T)                | 1-transistor + 1 capacitor (1T1C) |
+| Refresh Required?      | No                               | Yes (periodic refresh needed)     |
+| Access Time            | Very Fast (~1 ns)                | Slower (~30–100 ns)               |
+| Density                | Low (larger cells)               | High (smaller cells)              |
+| Power Consumption      | High (static + dynamic)          | Lower (mostly dynamic)            |
+| Cost per bit           | High                             | Low                               |
+| Application            | CPU Cache                        | Main Memory                       |
+
+================================================================================
+III. DRAM INTERNAL ARCHITECTURE
+-------------------------------
+
+A. DRAM CELL STRUCTURE (1T1C)
+-----------------------------
+Each bit is stored using:
+- **1T (One Transistor)**: Controls access to the capacitor
+- **1C (One Capacitor)**: Stores charge (logic 1) or no charge (logic 0)
+
+B. DRAM ARRAY STRUCTURE
+------------------------
+
+                   WORD LINE (WL)
+                       |
+                  [ ACCESS T ]
+                       |
+            BIT LINE <--CAPACITOR
+                       |
+                      GND
+
+
+- **Word Line (WL)**: Row selector line
+- **Bit Line (BL)**: Column-wise data transfer path
+- **Access Transistor**: Gate controlled by WL, connects capacitor to BL
+
+
+                                                    +-----------------------------------------------+
+                                                    |                                               |
+                                                    |           DRAM CELL ARRAY (Matrix)            |
+                                                    |     Rows (Wordlines) × Columns (Bitlines)     |
+                                                    |                                               |
+                                                    +-----------------------------------------------+
+                                                                 ↑                    ↑
+                                                           ROW DECODER           COLUMN DECODER
+                                                                 ↑                    ↑
+                                                                RAS                  CAS
+                                                         (Row Addr Strobe)    (Column Addr Strobe)
+
+
+================================================================================
+IV. DRAM ACCESS FLOW
+---------------------
+MUX/DEMUX (Multiplexer/Demultiplexer)
+✓ The physical address from the CPU is split into two halves due to limited pin count on DRAM chips
+✓ MUX:
+    → First, selects row address (sent first) using RAS (Row Address Strobe)
+    → Later, selects column address using CAS (Column Address Strobe)
+✓ DEMUX:
+    → Routes these addresses internally to decoders
+
+RAS – Row Activation Phase
+✓ RAS signal is activated → indicates the row address is being latched
+✓ Row decoder decodes this row address
+✓ Corresponding Wordline (WL) is enabled
+✓ All capacitors in that row connect to their respective bitlines (BL / /BL)
+
+Sense Amplifier
+✓ Each bitline receives a tiny voltage (from capacitor charge or lack thereof)
+✓ Sense amplifier detects this differential voltage (~100mV)
+✓ Amplifies it to full logic levels (0 → GND or 1 → Vdd)
+✓ Also temporarily latches the data for column access
+
+CAS – Column Access Phase
+✓ After RAS completes, CAS is activated to indicate column address is sent
+✓ Column decoder uses the latched column address to select the proper sense amplifier output
+✓ Column MUX selects a specific bit(s) from the latched row
+✓ Data is transferred to CPU (read) or written from CPU (write)
+
+Precharge (Prepare for Next Access)
+✓ Once the access is complete:
+
+    All bitlines are disconnected from sense amps
+
+    Bitlines are equalized to Vdd/2 using precharge circuitry
+    ✓ Ensures correct initial state for next row activation
+
+Restoration (Recharge Phase)
+✓ The sense amplifiers write the read-out value back into the original cell
+✓ This step is essential because DRAM reads are destructive
+✓ Restoration ensures cell retains data until next refresh cycle
+
+
+================================================================================
+V. DRAM REFRESH CYCLE (DETAILED)
+---------------------------------
+
+✓ **DRAM needs refresh** as capacitor charge leaks over time (~64ms window)  
+✓ Refresh logic is part of the **Memory Controller**
+
+**Types of Refresh:**
+- **Auto Refresh (AR)**: Done automatically by issuing refresh commands
+- **Self Refresh (SR)**: DRAM refreshes itself during low power/sleep mode
+- **Distributed vs Burst Refresh**:
+  * **Distributed**: Spread refresh cycles evenly over time  
+  * **Burst**: Refresh multiple rows quickly when the system is idle
+
+**Refresh Operations:**
+1. Controller issues REF command
+2. DRAM internally activates one or more rows sequentially
+3. Precharge → Activate → Sense → Restore → Precharge
+
+================================================================================
+VI. SENSE AMPLIFIERS (SA)
+--------------------------
+
+✓ **Sense Amplifier (SA)** is a differential amplifier  
+✓ Located at every bitline pair  
+                      |   
+                      |
+                      |__ 🧠 Why use a bit line pair instead of a single wire?
+
+                          Using both BL and /BL allows for:
+                              ✅ Differential Sensing: Sense amplifiers detect voltage differences between BL and /BL, 
+                                 which is faster and more immune to noise than sensing absolute voltage.
+                              ✅ Noise Rejection: External interference that affects both lines equally can be cancelled out (common-mode noise).
+                              ✅ Power Efficiency: Smaller voltage swings are sufficient, which reduces power usage during reads.
+
+✓ Detects small voltage differences (~100mV)  
+✓ Amplifies to logic 1 (Vdd) or 0 (GND)
+
+**Also restores charge back** to the capacitor via the bitline  
+✓ During reads, it latches the value  
+✓ During writes, it drives the bitline with input value
+
+================================================================================
+VII. SRAM INTERNAL STRUCTURE
+----------------------------
+
+**6T SRAM Cell:**
+     Each Bit is stored using:
+      - 2 Cross-coupled inverters (4T)     ===========>     To Maintain Stable State
+      - 2 Access transistors (2T)          ===========>     To READ/WRITE
+
+     +--------+      +--------+
+     | Inverter|<--->|Inverter|
+     +--------+      +--------+
+        |  ^            |  ^
+        v  |            v  |
+      Access T1       Access T2
+        |                  |
+        BL                ~BL
+
+                                                    BIT LINE (BL)            BIT LINE BAR (/BL)
+                                                          |                         |
+                                                      +--+--+                  +---+--+
+                                                      | M5  |                  |  M6  |    <- M5, M6 connecting to internal storage nodes.
+                                                      +--+--+                  +---+--+
+                                                          |                         |
+                                                    
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                          |-------------------------|
+                                                          |      Feedback Loop      |
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                      +--+--+-+                  +--+--+-+
+                                                      | INV1  |                  | INV2  |
+                                                      |(M1,M3)|                  |(M2,M4)|
+                                                      |       |                  |       |
+                                                      +--+--+-+                  +--+--+-+
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                          |      Feedback Loop      |
+                                                          |-------------------------|                       
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                          |                         |
+                                                      +--+--+                  +---+--+
+                                                      | M5  |                  |  M6  |    <- M5, M6 gated by word line, which determine their 
+                                                      +--+--+                  +---+--+       ON / OFF status.
+                                                          |                         |
+                                                      WORD LINE                WORD LINE
+
+
+
+✓ Faster because no refresh  
+✓ Stable storage as long as power is supplied  
+✓ Larger footprint than DRAM → lower density
+
+================================================================================
+VIII. SRAM vs DRAM - PERFORMANCE
+-------------------------------
+
+| Aspect              | SRAM                  | DRAM                       |
+|---------------------|------------------------|-----------------------------|
+| Latency             | 1–5 ns                | 30–100 ns                  |
+| Density             | Low                   | High                       |
+| Scalability         | Poor beyond 22nm      | Excellent                  |
+| Area per bit        | Large (~100 F²)       | Small (~6–8 F²)            |
+| Refresh Logic       | Not needed            | Complex, mandatory         |
+| Stability           | Very stable           | Depends on refresh cycles  |
+
+**F²** = Feature size squared (unit area for memory cell)
+
+================================================================================
+IX. DMUX / MUX FUNCTION IN DRAM
+-------------------------------
+
+- **Row Decoder (DEMUX)**:
+  * Decodes incoming row address
+  * Activates a single **Word Line (WL)**
+
+- **Column MUX**:
+  * Selects one or more bitlines corresponding to the column address
+  * Routes to I/O buffers for read/write
+
+✓ Together, MUX/DEMUX allow selection from a large matrix of memory cells  
+✓ Enables high density with small address pin count
+
+================================================================================
+X. USE CASES
+------------
+
+**SRAM:**
+- L1/L2/L3 CPU caches
+- Register files
+- GPU scratchpads
+- Networking buffers
+
+**DRAM:**
+- Main memory (DDRx modules)
+- Graphics memory (GDDR)
+- Virtualized RAM
+- Laptop/mobile memory (LPDDR)
+
+================================================================================
+XI. SUMMARY
+-----------
+
+✓ **SRAM**: Fast, power-hungry, expensive, no refresh  
+✓ **DRAM**: Slower, cheaper, needs refresh, high-density  
+✓ **DRAM controller** manages refresh, precharge, restore, and access scheduling  
+✓ **Sense amplifiers** and **MUX/DEMUX** enable the scalability and operation  
+✓ DRAM is indispensable for system RAM; SRAM is crucial for caches
+
+================================================================================
+
