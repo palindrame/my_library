@@ -1,0 +1,219 @@
+
+
+
+## 🧠 Overview: CPU Microarchitecture
+
+A **modern out-of-order, superscalar CPU** is typically divided into two main subsystems:
+
+### ✅ **Front End**: Responsible for **fetching**, **predicting**, **decoding**, and preparing instructions for execution.
+
+### ✅ **Back End**: Responsible for **scheduling**, **executing**, **retiring**, and **committing** instructions and results.
+
+These subsystems are connected via intermediate buffers and queues.
+
+---
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+                                                                        CPU FRONT END (FE)
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+The **Front End** is like the **brain’s reader and translator** — it looks ahead in the instruction stream and translates instructions into a format the CPU’s execution engine can handle.
+
+### 📦 Key Components in the Front End:
+
+---
+
+### 1. **Instruction Cache (L1I)**
+- **Location**: Front end
+- **Function**: Stores recently accessed instructions for fast retrieval.
+- Typically **separate** from the data cache (this is a Harvard-style design).
+- Very small (~32KB) but extremely fast (1–3 cycles latency).
+
+---
+
+### 2. **Branch Predictor**
+- **Location**: Front end, often early in the pipeline
+- **Function**:
+  - Guesses the outcome of conditional branches (`if`, `while`) **before** they're resolved.
+  - This avoids pipeline stalls and keeps instructions flowing.
+- Modern CPUs use complex predictors (e.g., TAGE, Gshare, BTB, RAS) to get >95% accuracy.
+
+---
+
+### 3. **Instruction Fetch Unit**
+- **Location**: Front end
+- **Function**: Uses the **Program Counter (PC)** and Branch Predictor to fetch the next set of instructions from memory or L1I.
+
+---
+
+### 4. **Instruction Decoder**
+- **Location**: Front end
+- **Function**:
+  - Takes complex instructions (e.g., x86 CISC) and breaks them into simpler **micro-ops (µops)**.
+  - µops are fixed-width, RISC-like instructions that are easier to schedule and execute.
+- Some common instructions may come from a µop cache (next point).
+
+---
+
+### 5. **µOp Cache / µOp Buffer**
+- **Location**: Front end
+- **Function**:
+  - Caches already-decoded micro-ops.
+  - If an instruction has already been decoded before, this bypasses the decoder entirely.
+
+---
+
+### 6. **Register Rename Table**
+- **Location**: Part of the decode/issue boundary
+- **Function**:
+  - Performs **register renaming** to eliminate false dependencies (WAW, WAR hazards).
+  - Maps **architectural registers (like GPRs)** to **physical registers**.
+
+---
+
+## 🟦 What else lives in the front end?
+
+- **L1I Cache** — as mentioned, this is the **L1 instruction cache**.
+- **TLB (Instruction)** — Translation Lookaside Buffer for instruction memory accesses (helps with virtual-to-physical translation).
+
+---
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+                                                                          CPU BACK END (BE)
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+The **Back End** is the **engine room** — it takes decoded instructions and actually executes them, handles memory access, and writes back results.
+
+### 📦 Key Components in the Back End:
+
+---
+
+### 1. **Reservation Stations (RS)**
+- Hold instructions waiting for operands or execution units to become free.
+- Track readiness of source operands (from registers, ROB, or forwarded values).
+
+---
+
+### 2. **Execution Units (ALUs, FPUs, etc.)**
+- **Integer ALUs**: Perform add, subtract, logic.
+- **Floating-Point Units (FPUs)**: Handle floating-point arithmetic.
+- **SIMD Units (AVX, SSE)**: Perform vector operations.
+- **Load/Store Units**: Handle memory read/write.
+
+---
+
+### 3. **Load/Store Queue (LSQ)**
+- Buffers memory accesses.
+- Ensures memory dependencies and ordering are respected.
+- Coordinates with L1D and TLB for memory translation.
+
+---
+
+### 4. **Reorder Buffer (ROB)**
+- Ensures in-order **retirement/commit** of instructions.
+- Stores instruction results until they are committed to registers or memory.
+
+---
+
+### 5. **Physical Register File**
+- The real hardware register pool.
+- Contains more registers than the architectural GPRs (General Purpose Registers) — needed for renaming.
+
+---
+
+### 6. **Data Caches (L1D, L2, L3)**
+- **L1D**: L1 **Data** Cache (~32KB): Fastest access to recently used data.
+- **L2**: Unified cache (~256KB–1MB): Slightly slower but larger.
+- **L3**: Shared Last-Level Cache (LLC, several MBs): Shared across cores.
+
+---
+
+### 7. **TLB (Data)**
+- Caches recently used virtual-to-physical address mappings for **data**.
+- Works closely with the MMU.
+
+---
+
+### 8. **Memory Management Unit (MMU)**
+- Handles **address translation** from virtual to physical.
+- Works with the **page tables**.
+- Uses **TLBs** to cache mappings.
+
+---
+
+### 9. **Commit Logic**
+- Ensures instructions update architectural state **in order**.
+- Handles **exception rollback** or **branch misprediction recovery**.
+
+---
+
+## 🧠 What are GPRs (General Purpose Registers)?
+
+- **Architectural** registers: `RAX`, `RBX`, `RCX`, etc. in x86.
+- Exposed to the programmer or compiler.
+- Fewer in number (~16 in x86-64).
+- These are **mapped** to a larger set of **physical registers** through **register renaming**.
+
+---
+
+## 🧠 More about Caches (L1, L2, L3):
+
+- **L1I**: L1 **Instruction Cache** (in front end)
+- **L1D**: L1 **Data Cache** (in back end)
+- **L2**: Unified cache for both instructions and data.
+- **L3**: Last level cache, shared among cores.
+- All caches are usually **physically indexed, physically tagged** and **inclusive** or **exclusive**, depending on design.
+
+---
+##########################################################################################################################################################
+                                                                      SUMMARY
+##########################################################################################################################################################
+
+## 🔄 Control Flow Summary
+
+1. **Fetch Stage**:
+   - PC → Branch Predictor → L1I Cache → Fetch Instruction
+
+2. **Decode Stage**:
+   - Instructions decoded → micro-ops generated → µop cache (if hit) → Rename registers
+
+3. **Issue Stage**:
+   - µops placed into Reservation Stations.
+   - ROB entries allocated.
+   - Wait for operands to become ready.
+
+4. **Execute Stage**:
+   - µops dispatched to ALUs/FPUs/SIMD/LSQ
+   - Operands read from Physical Register File or forwarded.
+
+5. **Write-back**:
+   - Results stored in ROB and broadcast to waiting RSs.
+
+6. **Commit**:
+   - Instructions committed in program order.
+   - Updates made to architectural register file and memory.
+
+---
+
+## 🧩 Recap
+
+### Front End:
+- L1I, Instruction TLB
+- Fetch Unit
+- Branch Predictor
+- Instruction Decoder
+- Register Renaming
+- µOp Cache
+
+### Back End:
+- Reservation Stations
+- ALUs, FPUs, SIMD units
+- Load/Store Queue
+- L1D, L2, L3 Caches
+- Data TLB
+- ROB
+- MMU
+- Physical Registers
+- Commit Logic
+
+---
+

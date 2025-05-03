@@ -1,0 +1,235 @@
+
+🧩 1. What is a Page?
+
+    A page is a fixed-size block of virtual memory.
+    It's the basic unit of memory management in a virtual memory system.
+    Typical size: 4 KB (but can be larger, like 2MB or 1GB in large page systems).
+    Pages divide a process's virtual address space into manageable chunks.
+    🔸 A page is part of a process’s virtual address space (i.e., what the process "thinks" is RAM).
+
+####################################################################################################################
+#                                                                                                                  #
+#    A virtual address translation can occur either before or after a cache(L1,L2,L3) lookup.                      #
+#    This ordering determines whether the cache is a :                                                             #
+#              📌 Virtually indexed cache:      Processor -> L1,L2,L3 -> MMU -> MemoryController -> MainMemory.    #
+#                                                                                                                  #
+#                                                        OR                                                        #
+#                                                                                                                  #
+#              📌 Physically indexed cache:      Processor -> MMU -> L1,L2,L3 -> MemoryController -> MainMemory.   #
+#                                                                                                                  #
+####################################################################################################################
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+🧾 2. What is a Page Table?
+
+    A page table is a data structure used by the OS/MMU to map each virtual page of a process to a physical frame in RAM.
+    Each entry in the page table is called a Page Table Entry (PTE).
+    A PTE stores: [ Frame Number bits | Protection bits | Status bits]
+
+                📌Frame no bits:                        -------->      store the physical frame number (PFN) to which this virtual page maps.
+
+                📌Protection bits: 
+                            🔸user / supervisor bit     -------->      privelege level required to access a page.
+                            🔸permission bit            -------->      whether this page can be updated or not, READ ONLY. 
+                            🔸No-Execute bit            -------->      whether code from this page can be executed or not.
+
+                📌Status bits (used by dedicated hardware like MMU):
+                            🔸valid / invalid bit       -------->      whether a particular PTE contains a valid FRAME no or not.
+                            🔸dirty(modified) bit       -------->      whether a page has been modified since it was loaded into memory.
+                                                                       (This is important since we need to know, if we need to write a 
+                                                                        page from the main memory back to disc in the future)
+                            🔸accessed bit              -------->      whether the page has been read or written to recently.
+                                                                       (Helps the MMU to track page usage for future caching and page replacement
+                                                                        decisions)
+                            🔸global bit                -------->      set by the OS to indicate whether this page is shared among all processes.
+                                                                       (often used by the OS Kernel Pages.)
+                    
+ 
+                          <<🧠 A page table is part of the OS's memory management metadata, not part of a process’s virtual address space.>>
+
+                                                      Process Virtual Address Space
+                                                      ┌────────────────────────────────────────────────────┐
+                                                      │ Page 0 │ Page 1 │ Page 2 │ ...            │ Page N │
+                                                      └────────────────────────────────────────────────────┘
+
+
+                                                          ┌─────────────┐
+                                                          │ Page Table  │  (1 per process)
+                                                          └─────────────┘
+                                                              │
+                                                              ├── PTE 0: maps Page 0 → Frame 10
+                                                              ├── PTE 1: maps Page 1 → Frame 25
+                                                              ├── PTE 2: maps Page 2 → Frame 92
+                                                              └── ...
+
+                                                      So:
+                                                          A page is one unit of the virtual address space of a process.
+                                                          A page table is the translation mechanism, mapping each page to a location in physical memory.
+
+                                @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                                @                                                                                                          @
+                                @  Each Process has a corresponding Page Table                                                             @
+                                @  maintained by the OS.                                                                                   @
+                                @                  |                                                                                       @
+                                @                  ------>Each Page table has multiple Page Table Entries (PTEs)                           @
+                                @                                |                                                                         @
+                                @                                -------> Each PTE maps that process's vitual Pages to Physical Frames.    @
+                                @                                                                                                          @
+                                @                                                                                                          @
+                                @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                          ⌛  REMEMBER: In a Page Table all Entries belong to a single process, 
+                                              but in a TLB, due to the ASID bits, we can have entries belonging to different processes.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+IMPORTANT: 
+---------
+      Whenever a process is given control of the processor (known as a context switch), 
+      its page table (the active page table) must be updated. This is typically 
+      done using a pointer called the [PAGE TABLE BASE REGISTER (PTBR)] or
+      the [PAGE DIRECTORY BASE REGISTER (PDBR)].
+                                              
+                                                +---------------------------------------------+
+                                                |                PTBR vs. PDBR                |
+                                                +---------------------------------------------+
+
+                                                1. PTBR (Page Table Base Register):
+                                                  - A general term used in older/simple architectures (e.g., single-level page tables).
+                                                  - Holds the **base address of the page table**.
+                                                  - Used by the MMU to begin virtual-to-physical address translation.
+                                                  - Examples: MIPS, early RISC CPUs.
+
+                                                2. PDBR (Page Directory Base Register):
+                                                  - Specific to **x86 architectures** (especially 32-bit).
+                                                  - Holds the base address of the **Page Directory** in a 2-level paging system.
+                                                  - In x86, this is stored in control register **CR3**.
+                                                  - With the move to x86_64 (64-bit), this evolved to point to the top-level **PML4**.
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+🧠 Memory Management Unit (MMU) and Page Tables – A Detailed Note
+
+🔁 Role of the MMU
+
+    The MMU (Memory Management Unit) is a hardware component responsible for translating Virtual Addresses (VA) generated by a process to Physical Addresses (PA) in RAM.
+    The MMU is typically integrated into the same chip as the processor cores and their caches.
+    This translation is guided by Page Tables, which are maintained by the Operating System (OS) for each process.
+
+📄 Page Table Basics
+
+    The Page Table is a data structure used to map Virtual Pages (VP) to Physical Frames (PF).
+    The OS maintains a separate Page Table for each process, since virtual memory gives each process the illusion 
+    of having its own isolated, contiguous address space.
+
+    📝 NOTE:
+    Suppose Process P0 maps virtual address VA420 to physical address PA069.
+    Process P1 might also have a VA420, but it could map to a completely different PA, say PA103.
+    This per-process abstraction is what enables isolation and protection in modern OS design.
+
+    Each process has its own page table, which the OS sets up when the process is created.
+     - This page table is stored somewhere in the main memory — not in a fixed location, but typically:
+     - Allocated dynamically by the OS kernel in kernel space.
+
+         📢REMINDER📢
+         Page tables don't have fixed, predetermined physical addresses in RAM. They are:
+            2. Dynamically Allocated: The kernel allocates physical memory frames for page tables just like it does for other kernel data structures.
+            3. Kernel-Managed Memory: Page tables reside in memory that's managed by the kernel, not in user space.
+            4. Physically Contiguous: Each individual page table (but not the entire multi-level structure) is typically stored in physically contiguous memory.
+
+    Its base address is stored in a CPU register, such as:
+        x86: CR3 register holds the Page Directory Base Register (PDBR)
+        ARM: Translation Table Base Register (TTBR0/TTBR1)
+    The hardware memory management unit (MMU) uses this base address to walk the page tables during address translation.
+
+🔢 Page Table Size Estimation – Example
+
+Let's analyze the memory overhead of page tables with an example:
+
+    Virtual Memory Space per Process: 16 GB
+    2^4 GB = 2^4×2^30 GB = 2^34 Bytes per process
+
+    Page Size: 4 KB
+    2^2×2^10 Bytes = 2^12 Bytes per page
+
+    Total Number of Pages per process:
+    2^34/2^12 Pages per process = 2^22 Pages per process
+
+    Size of Each Page Table Entry (PTE): 4 Bytes
+
+    Total Size of Page Table per Process:
+    2^22 PTEs × 4 Bytes = 2^24 Bytes = 16 MB
+
+    For 50 Processes:
+    16 MB×50 = 800 MB
+
+This highlights a major scalability concern — storing full page tables in memory for many processes can consume a significant portion of RAM.
+🧠 Solutions for Efficient Page Table Management
+
+For efficiency and support for large address spaces, modern systems use multi-level page tables, e.g.:
+    x86_64: 4-level page tables:
+
+        PML4 → PDPT → Page Directory → Page Table → Page Frame
+
+
+                              |----------------------------------------------------------------------------------------------------------|
+                              |  📢NOTE📢 :                                                                                              |
+                              |  All of these page table levels are themselves stored in main memory, and are paged like normal memory.  |
+                              |  The smaller tables are only created when they are actually needed to map a part of the virtual address  |
+                              |  space that's being used.                                                                                |
+                              |  If a chunk of the Virtual Addr space isn't currently linked to any real Physical Memory,                |
+                              |  the entries in the higher level Page Table that would point to it, is marked as INVALID.                |
+                              |  When an entry of a higher level page table is marked as INVALID, the system doesn't need to             |
+                              |  create a lower level page table it would have pointed to; which conserves memory.                       |
+                              |----------------------------------------------------------------------------------------------------------|
+
+
+                                                    +------------------------------------------------------+
+                                                    |     x86_64 4-Level Paging Structure (Virtual → PA)   |
+                                                    +------------------------------------------------------+
+
+                                                    Virtual Address (VA):  48 bits (canonical form)
+
+                                                    Breakdown of bits in VA:
+                                              +------------+-----------+-----------+-----------+-----------+-----------+
+                                              | 9 bits     | 9 bits    | 9 bits    | 9 bits    | 12 bits   |           |
+                                              | PML4 Index | PDPT Idx  | PD Idx    | PT Idx    | Page Off  |           |
+                                              +------------+-----------+-----------+-----------+-----------+-----------+
+
+                                                    Each level contains 512 (2^9) entries (since 9 bits are used at each level)
+
+                                                    Step-by-Step Translation:
+                                                    -------------------------
+
+                                                    1. CR3 register → points to base of PML4 table
+                                                      (Page Map Level 4)
+
+                                                    2. Use top 9 bits of VA to index into PML4:
+                                                      VA[47:39] → PML4 Index
+
+                                                      Read the 64-bit entry → gives base of PDPT
+
+                                                    3. Use next 9 bits to index into PDPT:
+                                                      VA[38:30] → PDPT Index (Page Directory Pointer Table)
+
+                                                      Read entry → base address of Page Directory (PD)
+
+                                                    4. Use next 9 bits to index into Page Directory:
+                                                      VA[29:21] → PD Index
+
+                                                      Read entry → base address of Page Table (PT)
+
+                                                    5. Use next 9 bits to index into Page Table:
+                                                      VA[20:12] → PT Index
+
+                                                      Read entry → gives **Page Frame Number (PFN)**
+
+                                                    6. Combine PFN + VA[11:0] (Page Offset)
+                                                      → Gives final 48-bit **Physical Address (PA)**
+
+                            This Returned PA is then used by the Memory controller to get access to the actual physical data in DRAM.
+                            (For more info continue reading bn_MemoryController.txt.)
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------

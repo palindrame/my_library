@@ -1,0 +1,77 @@
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+🔄 Putting It All Together: Flow of an Out-of-Order Instruction
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+    1.  Fetch: CPU fetches multiple instructions per cycle.
+
+    2.  Decode: Instruction is decoded, register operands are mapped via register renaming.
+
+    3.  Issue:
+
+          An available ROB entry is assigned.
+
+          Instruction is placed in a Reservation Station.
+
+          Operand readiness is checked.
+
+    4.  Wait/Dispatch:
+
+          RS tracks readiness.
+
+          When ready, it dispatches to an execution unit.
+
+    5.  Execute:
+
+          Instruction is computed.
+
+          Result is broadcast to waiting RSs and written to ROB.
+
+    6.  Commit:
+
+          Instruction at the ROB head is checked.
+
+          If complete, the result is committed to the register file or memory.
+
+          The ROB entry is retired.
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+💡 Analogy
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+Imagine a restaurant kitchen:
+
+    Orders (Instructions) come in and are placed in a job queue (ROB).
+
+    Chefs (Functional Units) look for orders they can start cooking — but only if all ingredients (operands) are available.
+
+    Orders that are waiting for ingredients are held in reservation stations.
+
+    Ingredients may come from earlier orders, and once they arrive, the chef starts cooking.
+
+    The head waiter (commit logic) serves completed dishes in the order they were received, even if some dishes were cooked earlier.
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+🧠 Summary of Their Roles
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+    Reservation Stations: Dynamically schedule instruction execution based on operand availability, independent of original order.
+
+    Reorder Buffer: Maintains program order for final updates, handles exceptions, and allows recovery from branch mispredictions.
+
+Together, these structures form the backbone of modern dynamic scheduling CPUs (e.g., those following the Tomasulo algorithm), 
+enabling high throughput and efficient use of CPU resources.
+
+
+
+
+
+
+
+
+
+
+
+
+

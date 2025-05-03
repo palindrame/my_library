@@ -1,1 +1,199 @@
+==============================================================================
+                             CACHE HIERARCHY
+==============================================================================
+
+  ⚙️ CPU caches are small, fast memory units close to the CPU used to reduce
+     average access time to main memory. They exploit **temporal** and **spatial**
+     locality of reference.
+
+------------------------------------------------------------------------------
+1. CACHE LEVELS AND ORGANIZATION
+------------------------------------------------------------------------------
+
+   
+        LEVEL          SIZE         LATENCY        ASSOCIATIVITY      TYPICAL USE          
+
+   │ L1 Cache     │ 16KB–128KB  │ 1–4 cycles    │ 4–8-way       │ Per core             │
+   │ L2 Cache     │ 128KB–1MB   │ 4–12 cycles   │ 4–16-way      │ Per core or shared   │
+   │ L3 Cache     │ 2MB–64MB    │ 12–50 cycles  │ 8–16-way      │ Shared across cores  │
+   │ L4 (optional)│ >64MB       │ 50–200+ cycles│ DRAM-based    │ Off-die (e.g., eDRAM)│
+
+
+
+✔ L1 is typically split into:
+   - L1i (instruction cache)
+   - L1d (data cache)
+
+✔ L2 and L3 are **unified**: hold both instructions and data.
+
+✔ Organization: Typically **Set-Associative**
+   - N-Way Set Associative: trade-off between fully-associative (flexible) and direct-mapped (fast).
+
+------------------------------------------------------------------------------
+2. CACHE MAPPING
+------------------------------------------------------------------------------
+
+[Tag | Index | Offset]
+- Index bits select the cache set.
+- Offset bits select byte/word in a block.
+- Tag uniquely identifies the memory block.
+
+BLOCK (LINE): Smallest unit of cacheable (transferable b/w RAM and Caches) memory (typically 64 bytes)
+
+------------------------------------------------------------------------------
+3. CACHE LATENCY & PROXIMITY
+------------------------------------------------------------------------------
+
+   ┌───────────────┬─────────────────────────────┐
+   │ LEVEL         │ LATENCY (typical cycles)    │
+   ├───────────────┼─────────────────────────────┤
+   │ Register      │ 0                           │
+   │ L1 Cache      │ 1–4                         │
+   │ L2 Cache      │ 4–12                        │
+   │ L3 Cache      │ 12–50                       │
+   │ Main Memory   │ 100–300                     │
+   └───────────────┴─────────────────────────────┘
+
+✔ Closer to core ⇒ faster access ⇒ more expensive ⇒ smaller in size
+
+------------------------------------------------------------------------------
+4. CACHE POLICIES: INCLUSIVE vs EXCLUSIVE vs NON-INCLUSIVE
+------------------------------------------------------------------------------
+
+CACHE POLICY DEFINITIONS (MIGHT BE DIFFERENT PER CACHE LEVEL):
+-------------------------------------------------------------
+* Inclusive Cache:
+   - All data in higher(closer to core)-level cache(s) (L1, L2) is guaranteed to be present in lower level (e.g. L3).
+   - L3 is a superset of L2 and L1.
+   - Example: Intel CPUs (e.g., Skylake).
+
+* Exclusive Cache:
+   - No data is duplicated across levels. Each block exists in only one level at a time.
+   - Total cache capacity = L1 + L2 + L3 (no redundancy).
+   - Example: AMD Zen CPUs, IBM Power.
+
+* Non-Inclusive, Non-Exclusive (NINE):
+   - No strict inclusion or exclusion. Blocks may or may not be duplicated.
+   - Greater flexibility.
+   - Example: Modern ARM cores.
+
+------------------------------------------------------------------------------
+5. STEP-BY-STEP DATA ACCESS FOR EACH POLICY
+------------------------------------------------------------------------------
+
+🔸 INCLUSIVE (e.g., Intel):
+---------------------------
+1. CPU requests address A.
+2. L1 lookup:
+   - If hit: return data.
+   - If miss: go to L2.
+3. L2 lookup:
+   - If hit: return and load L1.
+   - If miss: go to L3.
+4. L3 lookup:
+   - If hit: return and load L2, L1.
+   - If miss: access DRAM, populate L3 → L2 → L1.
+
+✅ Guarantees L3 always has full picture → makes coherence across cores easier.
+
+🔸 EXCLUSIVE (e.g., AMD):
+---------------------------
+1. CPU requests address A.
+2. L1 lookup.
+   - If hit: return.
+   - If miss: L2 lookup.
+3. L2 hit ⇒ move block to L1, evict L1 to L2.
+   - No duplication.
+4. If L2 miss ⇒ check L3.
+5. L3 hit ⇒ promote to L2, evict L2 to L3.
+
+✅ Better effective cache size, but adds complexity in maintaining cache states.
+
+🔸 NINE (Flexible ARM, IBM):
+---------------------------
+1. No strict rules.
+2. Caches are managed heuristically.
+3. Block may exist in multiple levels or just one.
+4. Block movement depends on access patterns, replacements, etc.
+
+✅ Allows tuning for workload-specific behavior.
+
+------------------------------------------------------------------------------
+6. COHERENCE AND INCLUSION
+------------------------------------------------------------------------------
+
+* Inclusive caches help with **coherence**:
+   - Shared L3 caches track all private cache contents.
+   - Evicting from L3 → automatic invalidation in L1/L2.
+
+* Exclusive caches require **directory-based** or **snooping** coherence:
+   - Need extra metadata or broadcast mechanisms.
+
+------------------------------------------------------------------------------
+7. WRITE POLICIES
+------------------------------------------------------------------------------
+
+- Write-Through: Writes propagate immediately to next level (simpler, slower).
+- Write-Back: Writes only update cache; main memory updated on eviction (faster).
+
+------------------------------------------------------------------------------
+8. TYPICAL CACHE CONFIGURATION (EXAMPLE: INTEL i7)
+------------------------------------------------------------------------------
+
+* L1d: 32 KB, 8-way, 64-byte lines, per-core
+* L1i: 32 KB, 8-way, 64-byte lines, per-core
+* L2: 256 KB, 8-way, unified, per-core
+* L3: 8–20 MB, 16-way, inclusive, shared across cores
+* Line size: 64 bytes
+
+------------------------------------------------------------------------------
+9. CACHE REPLACEMENT POLICIES IN HIERARCHY
+------------------------------------------------------------------------------
+
+- L1: Needs fast policies → typically LRU approximations, PLRU, FIFO.
+- L2: Slightly more flexible → true LRU or pseudo-LRU.
+- L3: Often uses more sophisticated policies like Adaptive Replacement, Bimodal Insertion, or LFU variants.
+
+------------------------------------------------------------------------------
+10. MODERN OPTIMIZATIONS
+------------------------------------------------------------------------------
+
+- Victim Caches: Small fully-associative caches to reduce conflict misses.
+- Sector Caches: Track multiple blocks under one tag to reduce tag overhead.
+- Non-blocking Caches: Allow out-of-order loads on miss.
+- Way Prediction: Predict likely cache way before lookup completes.
+
+------------------------------------------------------------------------------
+11. SUMMARY DIAGRAM: CACHE DATA FLOW
+------------------------------------------------------------------------------
+
+      +------------------+       +------------------+       +------------------+
+      |     L1 Cache     | <---> |     L2 Cache     | <---> |     L3 Cache     |
+      +--------+---------+       +--------+---------+       +--------+---------+
+               |                          |                          |
+           <per-core>            <per-core or shared>    <shared Last Level Cache(LLC)>
+               ↓                          ↓                          ↓
+           Registers                 Slightly slower            Slowest in-core
+                                     but still fast             shared storage
+
+               ↓
+        Main Memory (DRAM)
+        ~100x slower than L1
+
+------------------------------------------------------------------------------
+12. FINAL NOTES
+------------------------------------------------------------------------------
+
+✔ L1 is latency optimized  
+✔ L3 is capacity optimized  
+✔ Inclusive: easier coherence  
+✔ Exclusive: better space efficiency  
+✔ NINE: balance between both  
+
+📌 System architects choose hierarchy depending on:
+- Core count
+- Workload (desktop vs server)
+- Power vs performance
+- Fabric interconnects
+
 

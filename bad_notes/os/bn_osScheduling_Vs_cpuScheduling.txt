@@ -1,0 +1,58 @@
+
+✅ PART 1: Does the Operating System (OS) have scheduling algorithms to handle jobs/tasks/processes?
+✅ Yes. The OS manages process scheduling — deciding which process gets the CPU, for how long, and in what order.
+🔧 Why? Because:
+
+    Multiple processes may be in a "ready" state at once, not necessarily in a simple queue.
+    NOTE: eg: Linux CFS has Red Black Trees for the CFS scheduling policy.
+          Also the kernel might have different scheduling policies.
+
+    The CPU can run only one (on a single core) at a time.
+
+    Efficient CPU utilization and responsiveness are critical.
+
+*********************************************************************************************************************************************
+
+✅ PART 2: Does the CPU itself have scheduling algorithms to handle instructions?
+✅ Yes, but this is different in nature and granularity from OS-level scheduling.
+
+The CPU doesn’t run entire processes; it executes instructions from a process's machine code. 
+What you're referring to here is instruction-level scheduling, pipelining, superscalar execution, out-of-order execution, etc.
+
+*********************************************************************************************************************************************
+⚙️ CPU Instruction Scheduling: Micro-architectural Level
+
+Once a process is picked by the OS and dispatched to the CPU, the CPU executes it instruction by instruction. 
+Modern CPUs are extremely complex and internally optimize the flow of instructions for speed and efficiency.
+    🧠 Key Concepts in CPU Instruction Scheduling:
+    1. Pipelining:
+
+        Instructions are broken into stages (like fetch, decode, execute, write back).
+
+        Multiple instructions are in different stages at once — like an assembly line.
+
+    2. Out-of-Order Execution (OoOE):
+
+        Instructions don’t have to be executed in the exact order they're written — as long as dependencies are respected.
+
+        The CPU schedules instructions dynamically to avoid idle units.
+
+    3. Superscalar Architecture:
+
+        CPU has multiple execution units (ALUs, FPUs, etc.).
+
+        It can execute multiple instructions per cycle if they’re independent.
+
+    4. Reservation Stations + Reorder Buffer:
+
+        Help manage out-of-order execution.
+
+        Ensure the results are committed in program order, even if executed out-of-order.
+
+    5. Instruction Fetch & Decode Scheduling:
+
+        Branch prediction affects which instructions are fetched next.
+
+        If prediction is wrong, the pipeline may be flushed and restarted.
+
+

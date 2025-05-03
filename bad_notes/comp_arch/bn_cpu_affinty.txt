@@ -1,0 +1,102 @@
+
+🧷 How to Bind a Process to a Specific Core in Linux (CPU Affinity)
+
+This is known as setting CPU affinity. It allows you to "pin" a process or thread 
+to a specific CPU core so that it only runs on that core. 
+This can be useful for performance measurements or real-time applications.
+
+###########################################################################################################################
+
+NOTE: setting CPU affintiy DOES NOT guarantee Non preemption.
+      The OS can still prempt our proces, if a high priority task arrives.
+      To know how to avoid preemption, refer below.
+
+      @@@@@@   To achieve ONLY affinity, refer first code.
+      @@@@@@   To achieve ONLY non preemption, refer second code.
+      @@@@@@   To achieve BOTH refer third code.
+
+###########################################################################################################################
+
+🧠 BTW THE WAY WE SET NON PREEMPTION IS BY MAKING OUR PROCESS REAL TIME.
+Linux uses the Completely Fair Scheduler (CFS) for regular tasks.
+For real-time tasks (SCHED_FIFO, etc.), it uses a priority-based real-time scheduler.
+
+NOTE: You may think that just setting Non preemption, might just do the trick of achieving both.
+      Well....It DOES NOT! setting preemption may give you control when and how your process yields CPU time, 
+      BUT NOT where it runs.
+
+      Just using Non preemption may actually WORSEN performance.
+      The scheduler may migrate your real-time thread across any available CPU/core that matches the load-balancing criteria.
+
+      This can lead to:
+          1. Cache misses (worse performance).
+          2. NUMA inefficiencies on multi-socket systems.
+          3. Inaccurate benchmarking (e.g., with RDTSC, since TSC skew between cores can exist).
+
+###########################################################################################################################
+
+1. Demo using sched_setaffinity:
+
+#define _GNU_SOURCE
+#include <sched.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main() {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(2, &cpuset);  // Bind to core 2 (0-based index)
+
+    pid_t pid = getpid(); // or 0 for current process
+    if (sched_setaffinity(pid, sizeof(cpuset), &cpuset) != 0) {
+        perror("sched_setaffinity");
+        return 1;
+    }
+
+    printf("Process bound to CPU 2\n");
+    // Your logic here
+    return 0;
+}
+
+###########################################################################################################################
+
+2.  Demo non preemption 
+
+#include <sched.h>
+
+struct sched_param param;
+param.sched_priority = 99;  // Max priority
+
+sched_setscheduler(0, SCHED_FIFO, &param);  // SCHED_FIFO: real-time, no timeslice
+
+###########################################################################################################################
+
+3. BOTH 
+
+⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️  Caution: A SCHED_FIFO process with high priority and an infinite loop can lock up your system if it never yields.
+
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <sched.h>
+#include <unistd.h>
+
+int main() {
+    // Step 1: Set CPU affinity to core 2
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(2, &cpuset);
+    sched_setaffinity(0, sizeof(cpuset), &cpuset);
+
+    // Step 2: Set real-time scheduling policy
+    struct sched_param param;
+    param.sched_priority = 99;
+    sched_setscheduler(0, SCHED_FIFO, &param);
+
+    printf("Running on CPU 2 with non preemption using real-time priority\n");
+
+    while (1);  // Busy loop
+}
+
+❌❌❌❌❌ NOTE: If you omit sched_setaffinity(), this same process CAN and WILL migrate to other cores. ❌❌❌❌❌
+
+###########################################################################################################################
