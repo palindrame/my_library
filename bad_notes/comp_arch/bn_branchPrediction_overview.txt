@@ -29,9 +29,17 @@
                       ##################################################################################################################################
 
 
+❕A MODERN CPU PIPELINE❕
+---------------------
+-> INORDER       Frontend
+-> OUT OF ORDER  Backend
+-> INORDER       Retirement
 
 
-
+  [BRANCHPREDICT] ===▶️ ▶️ ▶️ === [FETCH |  DECODE | RENAME] ===▶️ ▶️ ▶️ === [ROB_read | EXECUTE | ROB_write] ===▶️ ▶️ ▶️ === [RETIRE]  
+  
+  <<-----------------INORDER---------------------------->>             <<--------OUT OF ORDER--------->>           << INORDER >>
+                    FRONT END                                                       BACKEND                          RETIREMENT
 
 
 

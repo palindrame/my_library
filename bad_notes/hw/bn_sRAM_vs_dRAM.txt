@@ -19,6 +19,52 @@ are two types of volatile memory technologies.
 ✓ **SRAM** uses flip-flop circuits to store data without needing refresh.  
 ✓ **DRAM** uses capacitors which leak charge and require periodic refresh.
 
+              ===================================================================================================================================================
+                                                                        ✨BEFORE WE BEGIN:✨
+                                                                          ----------------
+
+              SRAM is INHERENTLY a (digital)logic compatible "system" on its own. It holds whatever kind of voltage (eg 3V which might represent logical 1)
+              we provide and maintains state until we explicitly change it. Of course, we have to supply it with constant power and therefore,
+              the thermal dissipation also increases but that's a different topic. We DON'T need any form of additional circuitry to bring it back from a
+              "unlogical realm" if you may, to the logical realm where we deal with binary numbers. It doesn't randomly veer off from our universe of logical
+              numbers on its own. There are costs that we pay for this wonderful "feature", but that's a  different discussion altogether. 
+
+              DRAM on the other hand NEEDS additional circuitry to enable a analog to digital conversion. You may charge a DRAM "cell" with suppose 3V(logical 1), 
+              but you may return at a later time and find out that it's 1.90V or something. Now in our logical realm this value doesn't make sense (we care only
+              about either 3V-logical 1 or 0V-logical 0). So what we have to do, is have some sort of additional circuitry to solve this conundrum. We  apply 
+              "clever" tricks to flip this unusable sort of voltage reading to something that's more usable in our logical realm(either 3V or 0V).  
+              [Keep in mind we also have an additional overhead of figuring out whether 0V "charged upto" 1.9V; or 3V "charged down" to 1.9V. We apply
+              different sorts of "techniques to overcome this as well"]. But as you may have guessed keeping track and maintaining this sort of state takes time.
+              Making our DRAM slower, and also making it NOT inherently "logical realm compatible" just on its own. It NEEDS HELP and INTERFERENCE from "outside").
+
+              Having said that DRAM has its own set of advantages as well which we'll look into.
+              ==================================================================================================================================================
+                                                                      
+
+ 
+                                                                  NOTE 2: SENSE AMPLIFIES are SRAMs ?
+                                                                -----------------------------------
+
+                                    When a row of DRAM cells is accessed, the entire row is read into a set of SENSE AMPLIFIERS, 
+                                    that act as a temporary storage buffer. This row buffer functions SIMILARLY to SRAM in that:
+
+                                    - It provides much faster access than the actual DRAM cells
+                                    - It holds the data as long as the row remains "open"
+                                    - It serves as the interface between the slow DRAM cells and the faster I/O circuits
+
+                                    The row buffer provides a stable, amplified copy of the data that can be accessed much more quickly 
+                                    than repeatedly reading from the actual DRAM cells. This is why memory access patterns that have good "LOCALITY" 
+                                    (accessing data in the same row consecutively) perform better - once a row (Read PAGE) is loaded into this buffer, 
+                                    subsequent accesses to the same row are much faster as they're effectively accessing what is functionally similar to SRAM.
+                                                      
+                                    A DRAM row is much wider than a word. Multiple consecutive words (cache line sized or more) 
+                                    may be read from a single row activation to improve efficiency.) 
+                                                                       
+              ==================================================================================================================================================
+
+
+
+
 ================================================================================
 II. BASIC COMPARISON
 --------------------
@@ -44,20 +90,26 @@ Each bit is stored using:
 - **1C (One Capacitor)**: Stores charge (logic 1) or no charge (logic 0)
 
 B. DRAM ARRAY STRUCTURE
-------------------------
-
-                   WORD LINE (WL)
-                       |
-                  [ ACCESS T ]
-                       |
-            BIT LINE <--CAPACITOR
-                       |
-                      GND
+   --------------------
+                                  
 
 
-- **Word Line (WL)**: Row selector line
-- **Bit Line (BL)**: Column-wise data transfer path
-- **Access Transistor**: Gate controlled by WL, connects capacitor to BL
+                                                                    WORD LINE (WL)
+                                                                          |    
+                                                                          | 
+                                                                      ____|____
+                                                                                
+                                                                  ACCESS TRANSISTOR
+                                                                      _______                    GROUND
+                                                    BIT LINE _________/       \_________| |_________XX_________
+                                                      (BL)                              | |
+                                                this is our "data"
+                                                                                    CAPACITOR 
+
+
+                                              - **Word Line (WL)**: Row selector line
+                                              - **Bit Line (BL)**: Column-wise data transfer path
+                                              - **Access Transistor**: Gate controlled by WL, connects capacitor to BL
 
 
                                                     +-----------------------------------------------+

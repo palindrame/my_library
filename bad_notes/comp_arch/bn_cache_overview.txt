@@ -9,10 +9,27 @@ WHY DO WE NEED CACHE?
 ✓ Waiting for memory introduces **stall cycles** (pipeline bubbles)  
 ✓ Cache is a small, fast memory located closer to the CPU to **bridge this gap**
 
+[for more detailed comp into the internals look into ../hw/bn_sRAM_vs_dRAM.txt]
+
 ✓ Cache stores frequently accessed data to **reduce average memory latency**
 
 → Improves system performance and CPU throughput
---------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+                                  NOTE: 🔥A (cache)BLOCK is another name for a (cache)LINE.🔥
+                
+                🚩 NOT REALLY, but our use case, allows us to use them interchangeably without any consequences.
+                🚩 From "Computer Architecture: A Quantitative Approach" by Hennessy and Patterson (5th Edition):
+                   "The unit of transfer between the memory and cache is called a block or a line. 
+                   Block is similar to a cache line, though some authors use the term line to 
+                   refer to the storage space in the cache and the term block to refer to the unit of transfer." 
+         ------ 
+   🔭 A (cache) BLOCK  is the unit of transaction b/w caches and to/from Memory. 
+   🔭 The info a cache line holds is dependent of the cache organization. 
+   🔭 A (cache) SET is a "collection" of (cache) LINES aka BLOCKS. ============================> It can be thought of as the #rows in a cache
+   🔭 It is a kind of bucketing system to make the search space smaller).
+   🔭 A (SET) WAY is HOW MANY (cache) LINES make up a single (cache)SET. ======================> It can be thought of as the #cache lines per row(i.e. per set)
+------------------------------------------------------------------------------------------------------------------------------------------------------
 
 CACHE FRIENDLY STRUCTURES AND BEHAVIOR
 --------------------------------------
@@ -198,15 +215,187 @@ CACHE ASSOCIATIVITY
 
 -----------------------------------------------------------------------------------
 
-IX. CACHE CONFLICTS
+IX. CACHE MISSES
 -------------------
-
-✓ Occurs when multiple memory blocks map to same cache set or line
 
 Types:
  1. **Conflict Miss**: Due to limited associativity; multiple addresses map to same set
  2. **Capacity Miss**: Cache too small to hold all working set
  3. **Compulsory Miss**: First-time access; block not in cache yet (cold start)
+
+
+===============================================================================
+                         TYPES OF CACHE MISSES (DETAILED)
+===============================================================================
+
+Cache misses occur when the data requested by the CPU is not found in the cache.
+The classic categorization of cache misses is known as the **"3C model"**:
+
+    1. Compulsory Misses
+    2. Capacity Misses
+    3. Conflict Misses
+
+Some extended models (e.g., 4C or 5C) also include:
+    4. Coherence Misses (in multicore systems)
+    5. System-related Misses (due to OS flushes, etc.)
+
+We'll go into each of these:
+
+-------------------------------------------------------------------------------
+1. COMPULSORY MISS (a.k.a. Cold-start Miss)
+-------------------------------------------------------------------------------
+
+  - Description:
+      Happens the **first time a memory block is accessed**, since it has never
+      been loaded into the cache.
+
+  - Cause:
+      Block is not in cache because it has not been loaded yet.
+      Happens regardless of cache size or associativity.
+
+  - Example:
+      Accessing address A for the first time — must be brought in from memory.
+
+  - Also Called:
+      Cold-start or first-reference miss.
+
+  - Solution/Minimization:
+      * Hardware prefetching
+      * Software-controlled prefetching
+      * Warming up caches before execution
+
+-------------------------------------------------------------------------------
+2. CAPACITY MISS
+-------------------------------------------------------------------------------
+
+  - Description:
+      Happens when the **cache cannot contain all the blocks** needed by the
+      program — even if there were no conflicts in mapping.
+
+  - Cause:
+      Total **working set size** of the program exceeds the cache's capacity.
+
+  - Example:
+      A loop processes an array larger than the cache, leading to repeated
+      evictions and reloads.
+
+  - Key Feature:
+      These misses would occur **even with a fully associative cache**.
+
+  - Solution:
+      * Increase cache size
+      * Optimize data locality in code (e.g., loop tiling)
+      * Use higher-level caches
+
+-------------------------------------------------------------------------------
+3. CONFLICT MISS
+-------------------------------------------------------------------------------
+
+  - Description:
+      Happens when multiple blocks **compete for the same cache set** due to
+      limited associativity, even though cache has enough space.
+
+  - Cause:
+      **Poor mapping** of memory blocks to cache sets/lines.
+
+  - Example (Direct-Mapped Cache):
+      If block 0 and block 4 both map to line 0, they evict each other even if
+      the cache has unused lines.
+
+  - Key Feature:
+      Would **not occur in a fully associative cache**.
+
+  - Solution:
+      * Use set-associative caches with higher associativity
+      * Improve address mapping
+      * Reorganize data structures (padding)
+
+-------------------------------------------------------------------------------
+4. COHERENCE MISS (Only in Multi-core/Multiprocessor Systems)
+-------------------------------------------------------------------------------
+
+  - Description:
+      Misses due to **cache coherence protocols** invalidating or replacing
+      cached blocks that are modified by another processor.
+
+  - Cause:
+      Another core writes to a shared memory block, which **invalidates** the
+      cached copy in this core’s cache.
+
+  - Example:
+      CPU0 and CPU1 both cache block X. CPU1 writes to X → CPU0's cache has an
+      invalid copy → CPU0 suffers a coherence miss when it tries to read X.
+
+  - Related to:
+      **MESI protocol**, snooping, directory-based coherence.
+
+  - Solution:
+      * Use efficient coherence protocols
+      * Minimize shared data
+      * Careful parallel programming
+
+-------------------------------------------------------------------------------
+5. SYSTEM-RELATED MISS (Rare, but Practical)
+-------------------------------------------------------------------------------
+
+  - Description:
+      Misses caused not by the program, but due to **system-level events** such
+      as OS flushing cache lines, context switches, DMA I/O, etc.
+
+  - Cause:
+      Cache content is replaced or invalidated due to **external effects**.
+
+  - Example:
+      Cache flush during a context switch causes valid data to be discarded.
+
+  - Solution:
+      * Optimize task switching
+      * Pin important data in cache (if supported)
+      * Use real-time OS or cache locking
+
+-------------------------------------------------------------------------------
+                  VISUAL SUMMARY (IN TEXT DIAGRAM FORM)
+-------------------------------------------------------------------------------
+
+                         -----------------------------
+                         |        CACHE MISSES        |
+                         -----------------------------
+                         |   1. Compulsory (Cold)     |
+                         |   2. Capacity              |
+                         |   3. Conflict              |
+                         |   4. Coherence (MP only)   |
+                         |   5. System-related        |
+                         -----------------------------
+
+-------------------------------------------------------------------------------
+                          IMPACT ON PERFORMANCE
+-------------------------------------------------------------------------------
+
+| Miss Type    | Hardware Affected | Common in       | Relative Cost   |
+|--------------|-------------------|-----------------|-----------------|
+| Compulsory   | All               | Start of runs   | Medium          |
+| Capacity     | Cache size        | Large workloads | High            |
+| Conflict     | Associativity     | Poor layout     | Medium to High  |
+| Coherence    | Shared caches     | Multithreading  | High (latency)  |
+| System       | Whole system      | Unpredictable   | Variable        |
+
+-------------------------------------------------------------------------------
+                               KEY TAKEAWAYS
+-------------------------------------------------------------------------------
+
+- The **3C model** is foundational to analyzing cache behavior.
+- Cache design (size, associativity, replacement policy) should consider all
+  types of misses.
+- Different strategies (hardware and software) can reduce each type of miss.
+- Understanding these types helps in **performance tuning** and **system design**.
+
+===============================================================================
+
+
+
+
+
+
 
 -----------------------------------------------------------------------------------
 

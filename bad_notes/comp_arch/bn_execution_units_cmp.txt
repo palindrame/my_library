@@ -1,0 +1,206 @@
+================================================================================
+                    CPU EXECUTION UNITS: ADD, MUL, DIV, SUB
+================================================================================
+A LOW-LEVEL DEEP DIVE INTO ARITHMETIC EXECUTION UNITS IN MODERN CPUs
+================================================================================
+
+Sections:
+---------
+1. Overview of Execution Units
+2. Integer Addition & Subtraction Units
+3. Integer Multiplication Units
+4. Integer Division Units
+5. Floating-Point Arithmetic Units
+6. Parallelism and Pipelining
+7. Scheduling, Throughput, and Latency
+8. Case Study: Intel Core vs AMD Zen Architectures
+9. Summary Table of Capabilities
+10. Glossary of Acronyms
+
+================================================================================
+1. OVERVIEW OF EXECUTION UNITS
+================================================================================
+
+Execution Units (EUs) are the functional blocks in a CPU core that *perform
+computations* such as add, subtract, multiply, divide, logical operations,
+etc. These EUs are accessed by instructions issued from a front-end decoder
+and scheduled by the out-of-order engine (if present).
+
+In modern superscalar processors:
+  - Multiple execution units exist.
+  - Units are often pipelined and specialized (e.g., integer vs FP).
+  - Not all units are symmetric (some are duplicated, others are shared).
+
+================================================================================
+2. INTEGER ADDITION & SUBTRACTION UNITS
+================================================================================
+
+== ADDITION UNIT ==
+
+Implemented as:
+  - **Ripple Carry Adder (RCA)** in simple cases.
+  - **Carry Lookahead Adder (CLA)** or **Kogge-Stone Adder (KSA)** for speed.
+
+Key Components:
+  - Bitwise XOR, AND, OR gates.
+  - Carry propagation logic for wide-word (e.g., 64-bit) adds.
+
+Modern CPUs use **pipelined adder units**:
+  - Latency: ~1-2 clock cycles.
+  - Throughput: 1 addition/cycle per port.
+  - Multiple integer adders can exist on different ports (e.g., Port 0, 1).
+
+== SUBTRACTION UNIT ==
+
+Implemented as:
+  - **A - B = A + (~B + 1)** (two’s complement negation of B + addition).
+  - Uses same hardware as adder unit with minor control logic tweaks.
+  - Subtraction often shares the adder unit with a control signal for inversion.
+
+Thus, subtraction doesn’t require a dedicated unit.
+
+================================================================================
+3. INTEGER MULTIPLICATION UNITS
+================================================================================
+
+== MULTIPLICATION UNIT ==
+
+Implemented via:
+  - **Booth's Algorithm** for signed multiply.
+  - **Wallace Tree or Dadda Tree** for partial product reduction.
+  - Final stage uses **carry-propagate adder** (e.g., KSA).
+
+Microarchitectural Details:
+  - Multiplier is pipelined into several stages.
+  - Latency: ~3-6 cycles for 32-64-bit operations.
+  - Throughput: 1 per cycle (depending on pipeline depth).
+  - Several ports may have their own multiplier units.
+
+Example:
+  - Intel Skylake: 2 integer multiplication units (Port 0 and Port 1).
+  - AMD Zen: 2 multiply units (1 per integer pipeline).
+
+================================================================================
+4. INTEGER DIVISION UNITS
+================================================================================
+
+== DIVISION UNIT ==
+
+Much more complex than ADD or MUL due to:
+  - Non-constant latency.
+  - High circuit area and power cost.
+  - Typically **non-pipelined** or **partially pipelined**.
+  - Uses **Restoring**, **Non-Restoring**, or **SRT Division Algorithm**.
+
+Modern CPUs implement:
+  - **Radix-4 SRT** for moderate performance (1-2 bits/iteration).
+  - **Digit recurrence** or **Newton-Raphson** for FP divide.
+
+Characteristics:
+  - Latency: ~20-40 cycles for 64-bit divide.
+  - Throughput: One divide every N cycles (usually >20).
+  - Only **one divide unit per core**, usually shared across ports.
+  - Often fully **serialized** — only 1 divide instruction can run at a time.
+
+================================================================================
+5. FLOATING-POINT ARITHMETIC UNITS
+================================================================================
+
+== Floating-Point Add/Sub ==
+
+Uses:
+  - **Exponent aligner**, **mantissa adder**, and **normalizer**.
+  - Usually pipelined (3–6 stages).
+  - FP SUB uses same unit as FP ADD with negation of operand.
+
+== Floating-Point Multiply ==
+
+Uses:
+  - Exponent adder, mantissa multiplier, normalization.
+  - Fully pipelined.
+
+== Floating-Point Divide ==
+
+Typically:
+  - Implemented with **Newton-Raphson** or **Goldschmidt algorithm**.
+  - Requires FP multiply unit for iterations.
+
+================================================================================
+6. PARALLELISM AND PIPELINING
+================================================================================
+
+== ADD/MUL Units ==
+  - Multiple **integer addition and multiplication units** can exist.
+  - These are **fully pipelined**.
+  - Can issue **multiple adds/mults per cycle** if different units are used.
+  - E.g., 2 ADDs and 2 MULs may be issued in parallel in a 4-wide machine.
+
+== DIV Units ==
+  - Generally **non-pipelined** or **deeply serialized**.
+  - **Only one divide** in progress per core usually.
+  - All divide instructions must wait for the unit to be free.
+
+== Instruction Scheduling ==
+  - Out-of-Order (OoO) scheduler selects ready instructions.
+  - Instructions are assigned to specific ports mapped to EUs.
+  - Port contention affects instruction-level parallelism (ILP).
+
+================================================================================
+7. SCHEDULING, THROUGHPUT, AND LATENCY
+================================================================================
+
+| Instruction | Typical Latency | Throughput (1 per N cycles) | Parallelizable?  |
+|-------------|------------------|-----------------------------|-----------------|
+| Integer ADD | 1 cycle          | 1/cycle (multiple units)    | Yes             |
+| Integer SUB | 1 cycle          | 1/cycle (same as ADD)       | Yes             |
+| Integer MUL | 3-5 cycles       | 1/cycle (if pipelined)      | Yes             |
+| Integer DIV | 20-40 cycles     | 1/20–40 cycles              | No (usually 1)  |
+| FP ADD      | 3-6 cycles       | 1/cycle                     | Yes             |
+| FP MUL      | 4-6 cycles       | 1/cycle                     | Yes             |
+| FP DIV      | 20-50 cycles     | 1/20+ cycles                | No              |
+
+================================================================================
+8. CASE STUDY: INTEL CORE vs AMD ZEN
+================================================================================
+
+== Intel Core (e.g., Skylake) ==
+  - Ports 0, 1: Integer and FP Multipliers
+  - Port 6: Integer Divider (shared)
+  - Port 1, 5: Integer Adders
+  - Up to 6-wide decode, 4-wide retire.
+  - Aggressive OoO scheduling with large reservation stations.
+
+== AMD Zen ==
+  - 2 Integer pipelines per core.
+  - 2 Address Generation Units (AGUs)
+  - 1 Integer Divide Unit (shared across pipelines)
+  - Fully pipelined ADD, MUL
+  - High ILP via dual schedulers.
+
+================================================================================
+9. SUMMARY TABLE OF CAPABILITIES
+================================================================================
+
+| Unit Type    | Shared or Dedicated | Pipelined? | Parallel Instances | Remarks                     |
+|--------------|---------------------|------------|--------------------|-----------------------------|
+| ADD/SUB      | Multiple             | Yes        | Yes (2–3 units)    | Sub uses same unit as add. |
+| MUL          | Multiple             | Yes        | Yes (1–2 units)    | Wide and fast pipelining.  |
+| DIV          | Shared               | No (mostly)| No (1 per core)    | Slow, high latency.        |
+
+================================================================================
+10. GLOSSARY OF ACRONYMS
+================================================================================
+
+- EU: Execution Unit – Hardware block for executing instructions.
+- RCA: Ripple Carry Adder – Simple adder where each bit waits for carry from previous.
+- CLA: Carry Lookahead Adder – Faster adder that computes carries in parallel.
+- KSA: Kogge-Stone Adder – Fast parallel prefix adder.
+- OoO: Out-of-Order – CPU capability to reorder instruction execution for performance.
+- ILP: Instruction-Level Parallelism – Degree to which instructions can be executed simultaneously.
+- FP: Floating Point – Numeric representation with fractional parts.
+- AGU: Address Generation Unit – Executes effective address calculations.
+- SRT: Sweeney-Robertson-Tocher – Common algorithm for digit-recurrence division.
+
+================================================================================
+
+

@@ -2,7 +2,22 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                   █▓▒░ CACHE WRITE POLICIES: FULL NOTE ░▒▓█                  ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-
+--------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------
+                                  NOTE: 🔥A (cache)BLOCK is another name for a (cache)LINE.🔥
+                
+                🚩 NOT REALLY, but our use case, allows us to use them interchangeably without any consequences.
+                🚩 From "Computer Architecture: A Quantitative Approach" by Hennessy and Patterson (5th Edition):
+                   "The unit of transfer between the memory and cache is called a block or a line. 
+                   Block is similar to a cache line, though some authors use the term line to 
+                   refer to the storage space in the cache and the term block to refer to the unit of transfer." 
+         ------ 
+   🔭 A (cache) BLOCK  is the unit of transaction b/w caches and to/from Memory. 
+   🔭 The info a cache line holds is dependent of the cache organization. 
+   🔭 A (cache) SET is a "collection" of (cache) LINES aka BLOCKS. ============================> It can be thought of as the #rows in a cache
+   🔭 It is a kind of bucketing system to make the search space smaller).
+   🔭 A (SET) WAY is HOW MANY (cache) LINES make up a single (cache)SET. ======================> It can be thought of as the #cache lines per row(i.e. per set)
+--------------------------------------------------------------------------------
 ──────────────────────────────────────────────────────────────────────────────
 SECTION 1: READ vs WRITE POLICIES
 ──────────────────────────────────────────────────────────────────────────────
@@ -24,12 +39,24 @@ SECTION 1: READ vs WRITE POLICIES
 ──────────────────────────────────────────────────────────────────────────────
 SECTION 2: WHAT IS A CACHE HIT / CACHE MISS? (Different from a Write Hit/Miss) 
 ──────────────────────────────────────────────────────────────────────────────
-- CACHE HIT: Requested data is found in the cache → Fast access.
-- CACHE MISS: Requested data is NOT in cache → Needs to be fetched from lower level (RAM, SSD, etc).
-  - Types of misses:
-    - Compulsory miss (first-time access)
-    - Capacity miss (cache too small)
-    - Conflict miss (mapping issue)
+- 🔥This is INDEPENDENT of whether we want to READ / WRITE.
+- 🔥it is ONLY concerned with whether the data requested is
+    FOUND IN THE CACHE OR NOT.
+- 🔥it DOES NOT concern itself with what we want to do with the data,
+    that comes later and is an independent set of action(s).
+    - If we want to read to a particular memory address and the data is not in the cache, 
+      it triggers a READ to the MM.
+    - If we want to write to a  particular memory address and the data is not in cache,
+      we have encountered what is called a WRITE MISS. How we deal(diff policies) with these
+      kinds of misses is what we'll effectively discuss in a bit. (we discuss about write HITS as well).
+
+- 🔥CACHE HIT: Requested data is found in the cache → Fast access.
+- 🔥CACHE MISS: Requested data is NOT in cache → Needs to be fetched from lower level (RAM, SSD, etc).
+                Types of misses:
+                  - Compulsory miss (first-time access)
+                  - Capacity miss (cache too small)
+                  - Conflict miss (mapping issue)
+- what we want to do with is "not our concern".
 
 ──────────────────────────────────────────────────────────────────────────────
 SECTION 3: WRITE HIT vs WRITE MISS (IN-DEPTH)
@@ -286,3 +313,20 @@ SECTION 10: WRAP-UP
 ■ Real systems use hybrid and optimized approaches depending on latency, power, and design constraints.
 
 ──────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
